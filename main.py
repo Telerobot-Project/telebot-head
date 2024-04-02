@@ -1,223 +1,95 @@
-import argparse
-import asyncio
-import json
-import logging
-import os
-import ssl
-import uuid
+import pygame
+import math
+from lib.usb_control import USB
 
-import cv2
-from aiohttp import web
-from av import VideoFrame
-import aiohttp_cors
-from aiortc import MediaStreamTrack, RTCPeerConnection, RTCSessionDescription
-from aiortc.contrib.media import MediaBlackhole, MediaPlayer, MediaRecorder, MediaRelay
+usb = USB()
 
-ROOT = os.path.dirname(__file__)
+pygame.init()
+size = width, height = 640, 320
+title = "Robot control"
 
-logger = logging.getLogger("pc")
-pcs = set()
-relay = MediaRelay()
+window = pygame.display.set_mode(size)
+clock = pygame.time.Clock()
+pygame.display.set_caption(title)
 
+mouse_down = False
+robot_speed, robot_direction = 0, 0
+robot_max_speed = 60
+robot_data, raw_data = [], []
+robot_command = ''
 
-class VideoTransformTrack(MediaStreamTrack):
-    """
-    A video stream track that transforms frames from an another track.
-    """
+circle_coord = [0, 0]
+circle_dist = 0
 
-    kind = "video"
+pygame.font.init()
+my_font = pygame.font.SysFont('Arial', 15)
 
-    def __init__(self, track, transform):
-        super().__init__()  # don't forget this!
-        self.track = track
-        self.transform = transform
+text = []
 
-    async def recv(self):
-        frame = await self.track.recv()
+def render_multi_line(lines, x, y, fsize):
+    for i, l in enumerate(lines):
+        window.blit(my_font.render(l, 0, (255, 255, 255)), (x, y + fsize*i))
 
-        if self.transform == "cartoon":
-            img = frame.to_ndarray(format="bgr24")
+def draw_window():
+    window.fill((0, 0, 0))
+    pygame.draw.circle(window, (255, 255, 255), (160, 160), 100, 5)
+    pygame.draw.circle(window, (255, 255, 255), (int(circle_coord[0] + 160), int(circle_coord[1] + 160)), 20)
+    pygame.draw.line(window, (255, 255, 255), (320 - 2, 0), (320 - 2, 320), 4)
+    render_multi_line(text, 335, 15, 20)
+    pygame.display.flip()  
 
-            # prepare color
-            img_color = cv2.pyrDown(cv2.pyrDown(img))
-            for _ in range(6):
-                img_color = cv2.bilateralFilter(img_color, 9, 9, 7)
-            img_color = cv2.pyrUp(cv2.pyrUp(img_color))
+if __name__ == '__main__':
+    usb.start()
 
-            # prepare edges
-            img_edges = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-            img_edges = cv2.adaptiveThreshold(
-                cv2.medianBlur(img_edges, 7),
-                255,
-                cv2.ADAPTIVE_THRESH_MEAN_C,
-                cv2.THRESH_BINARY,
-                9,
-                2,
-            )
-            img_edges = cv2.cvtColor(img_edges, cv2.COLOR_GRAY2RGB)
+    run = True
+    while run:
+        raw_data = usb.read()
+        robot_data = raw_data if raw_data != None else robot_data
+        text = []
 
-            # combine color and edges
-            img = cv2.bitwise_and(img_color, img_edges)
-
-            # rebuild a VideoFrame, preserving timing information
-            new_frame = VideoFrame.from_ndarray(img, format="bgr24")
-            new_frame.pts = frame.pts
-            new_frame.time_base = frame.time_base
-            return new_frame
-        elif self.transform == "edges":
-            # perform edge detection
-            img = frame.to_ndarray(format="bgr24")
-            img = cv2.cvtColor(cv2.Canny(img, 100, 200), cv2.COLOR_GRAY2BGR)
-
-            # rebuild a VideoFrame, preserving timing information
-            new_frame = VideoFrame.from_ndarray(img, format="bgr24")
-            new_frame.pts = frame.pts
-            new_frame.time_base = frame.time_base
-            return new_frame
-        elif self.transform == "rotate":
-            # rotate image
-            img = frame.to_ndarray(format="bgr24")
-            rows, cols, _ = img.shape
-            M = cv2.getRotationMatrix2D((cols / 2, rows / 2), frame.time * 45, 1)
-            img = cv2.warpAffine(img, M, (cols, rows))
-
-            # rebuild a VideoFrame, preserving timing information
-            new_frame = VideoFrame.from_ndarray(img, format="bgr24")
-            new_frame.pts = frame.pts
-            new_frame.time_base = frame.time_base
-            return new_frame
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False;
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_down = True
+            if event.type == pygame.MOUSEBUTTONUP:
+                mouse_down = False
+        
+        if mouse_down:
+            circle_coord = list(pygame.mouse.get_pos())
+            circle_coord = [circle_coord[0] - 160, circle_coord[1] - 160]
+            circle_dist = math.sqrt(circle_coord[0] ** 2 + circle_coord[1] ** 2)
+            if circle_dist >= 100:
+                circle_coord[0] /= circle_dist / 100
+                circle_coord[1] /= circle_dist / 100
+                circle_dist = 100
         else:
-            return frame
+            circle_coord = [0, 0]
+            circle_dist = 0
+        
+        robot_speed = int(circle_dist / 100 * robot_max_speed)
+        robot_direction = int(math.atan2(circle_coord[0], circle_coord[1] * -1) / math.pi * 180)
+        robot_direction = (robot_direction + 360) % 360
 
+        text.append(f'robot speed = {robot_speed}/{robot_max_speed}')
+        text.append(f'robot direction = {robot_direction}')
 
-async def index(request):
-    content = open(os.path.join(ROOT, "index.html"), "r").read()
-    return web.Response(content_type="text/html", text=content)
+        robot_command = 'MOVE '
+        robot_command += '0' * (2 - len(str(robot_speed)))
+        robot_command += str(robot_speed)
+        robot_command += ' '
+        robot_command += '0' * (3 - len(str(robot_direction)))
+        robot_command += str(robot_direction)
+        robot_command += '\n'
+        # if mouse_down:
+        usb.write(robot_command)
+        print(f'WRITE: {robot_command[:-1]}')
+            # mouse_down = 0
 
+        # print(robot_data)
 
-async def javascript(request):
-    content = open(os.path.join(ROOT, "client.js"), "r").read()
-    return web.Response(content_type="application/javascript", text=content)
+        draw_window()
+        clock.tick(20)
 
-
-async def offer(request):
-    params = await request.json()
-    offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
-
-    pc = RTCPeerConnection()
-    pc_id = "PeerConnection(%s)" % uuid.uuid4()
-    pcs.add(pc)
-
-    def log_info(msg, *args):
-        logger.info(pc_id + " " + msg, *args)
-
-    log_info("Created for %s", request.remote)
-
-    # prepare local media
-    player = MediaPlayer(os.path.join(ROOT, "demo-instruct.wav"))
-    recorder = MediaBlackhole()
-
-    @pc.on("datachannel")
-    def on_datachannel(channel):
-        @channel.on("message")
-        def on_message(message):
-            if isinstance(message, str) and message.startswith("ping"):
-                channel.send("pong" + message[4:])
-
-    @pc.on("connectionstatechange")
-    async def on_connectionstatechange():
-        log_info("Connection state is %s", pc.connectionState)
-        if pc.connectionState == "failed":
-            await pc.close()
-            pcs.discard(pc)
-
-    @pc.on("track")
-    def on_track(track):
-        log_info("Track %s received", track.kind)
-
-        if track.kind == "audio":
-            pc.addTrack(player.audio)
-            recorder.addTrack(track)
-        elif track.kind == "video":
-            pc.addTrack(
-                VideoTransformTrack(
-                    relay.subscribe(track), transform=params["video_transform"]
-                )
-            )
-
-        @track.on("ended")
-        async def on_ended():
-            log_info("Track %s ended", track.kind)
-            await recorder.stop()
-
-    # handle offer
-    await pc.setRemoteDescription(offer)
-    await recorder.start()
-
-    # send answer
-    answer = await pc.createAnswer()
-    await pc.setLocalDescription(answer)
-
-    return web.Response(
-        content_type="application/json",
-        text=json.dumps(
-            {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
-        ),
-    )
-
-
-async def on_shutdown(app):
-    # close peer connections
-    coros = [pc.close() for pc in pcs]
-    await asyncio.gather(*coros)
-    pcs.clear()
-
-
-app = web.Application()
-cors = aiohttp_cors.setup(app)
-app.on_shutdown.append(on_shutdown)
-app.router.add_get("/", index)
-app.router.add_get("/client.js", javascript)
-app.router.add_post("/offer", offer)
-
-for route in list(app.router.routes()):
-    cors.add(route, {
-        "*": aiohttp_cors.ResourceOptions(
-            allow_credentials=True,
-            expose_headers="*",
-            allow_headers="*",
-            allow_methods="*"
-        )
-    })
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="WebRTC audio / video / data-channels demo"
-    )
-    parser.add_argument("--cert-file", help="SSL certificate file (for HTTPS)")
-    parser.add_argument("--key-file", help="SSL key file (for HTTPS)")
-    parser.add_argument(
-        "--host", default="0.0.0.0", help="Host for HTTP server (default: 0.0.0.0)"
-    )
-    parser.add_argument(
-        "--port", type=int, default=8080, help="Port for HTTP server (default: 8080)"
-    )
-    parser.add_argument("--record-to", help="Write received media to a file."),
-    parser.add_argument("--verbose", "-v", action="count")
-    args = parser.parse_args()
-
-    if args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.INFO)
-
-    if args.cert_file:
-        ssl_context = ssl.SSLContext()
-        ssl_context.load_cert_chain(args.cert_file, args.key_file)
-    else:
-        ssl_context = None
-
-    web.run_app(
-        app, access_log=None, host=args.host, port=args.port, ssl_context=ssl_context
-    )
+    pygame.quit()
+    usb.serial.close()

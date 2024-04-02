@@ -21,14 +21,15 @@ class USB:
         else:
             print('Failed to open port')
 
-    def read(self):
+    def read(self) -> list:
         if self.serial.in_waiting > 0:
             data = self.serial.read_all().decode('utf-8').rstrip()
-            print(data)
+            print(f'READ: {data}')
+            return data.split()
+        return None
 
-    def write(self):
-        message = input('WRITE -> ')
-        self.serial.write(message.encode())
+    def write(self, msg:str) -> None:
+        self.serial.write(msg.encode())
 
 
 if __name__ == '__main__':
@@ -40,7 +41,7 @@ if __name__ == '__main__':
     try:
         while True:
             if mode:
-                usb.write()
+                usb.write(input('WRITE: '))
             else:
                 usb.read()
     except KeyboardInterrupt:
