@@ -23,7 +23,7 @@ class Window:
                 self.close()
 
     def update(self):
-        # self.clock.tick(15)
+        self.clock.tick(25)
         pygame.display.update()
 
     def close(self):

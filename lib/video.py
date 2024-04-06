@@ -4,47 +4,55 @@ import pygame
 import pickle
 import imutils
 
+
 class Video:
     def __init__(self, window):
         self.frame = None
         self.surface = None
         self.binary = None
         self.window = window
+        self.new_data = False
 
-    def start(self):
-        self.obj = cv2.VideoCapture(0)
+    def start(self, i=0):
+        self.obj = cv2.VideoCapture(i)
         self.width = int(self.obj.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.obj.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    
+
     def read(self):
         if self.obj.isOpened():
-          _, self.frame = self.obj.read()
+            _, self.frame = self.obj.read()
+            if self.frame is not None:
+                self.new_data = True
         return self.frame
-    
+
     def draw(self, x, y, width, height):
         if self.frame is None:
-            pygame.draw.rect(self.window.screen, (0, 0, 0), (x, y, width, height))
+            pygame.draw.rect(self.window.screen, (0, 0, 0),
+                             (x, y, width, height))
         else:
-          self.surface = self.frame
+            self.surface = self.frame
 
-          if width / self.width > height / self.height:
-              self.surface = imutils.resize(self.surface, width=width)
-              new_height = self.height * (width / self.width)
-              crop = (new_height - height) / 2
-              self.surface = self.surface[int(crop) : int(new_height - crop), 0 : width]
-          else:
-              self.surface = imutils.resize(self.surface, height=height)
-              new_width = self.width * (height / self.height)
-              crop = (new_width - width) / 2
-              self.surface = self.surface[0 : height, int(crop) : int(new_width - crop)]
-          
-          self.surface = cv2.cvtColor(self.surface, cv2.COLOR_BGR2RGB)
-          self.surface = numpy.rot90(self.surface)
-          self.surface = pygame.surfarray.make_surface(self.surface)
-          self.window.screen.blit(self.surface, (x, y))
-          pygame.draw.rect(self.window.screen, (0, 0, 0), (x, y, width, height), 1)
+            if width / self.width > height / self.height:
+                self.surface = imutils.resize(self.surface, width=width)
+                new_height = self.height * (width / self.width)
+                crop = (new_height - height) / 2
+                self.surface = self.surface[int(crop): int(
+                    new_height - crop), 0: width]
+            else:
+                self.surface = imutils.resize(self.surface, height=height)
+                new_width = self.width * (height / self.height)
+                crop = (new_width - width) / 2
+                self.surface = self.surface[0: height, int(
+                    crop): int(new_width - crop)]
 
-    def get_binary(self, width = 320):
+            self.surface = cv2.cvtColor(self.surface, cv2.COLOR_BGR2RGB)
+            self.surface = numpy.rot90(self.surface)
+            self.surface = pygame.surfarray.make_surface(self.surface)
+            self.window.screen.blit(self.surface, (x, y))
+            pygame.draw.rect(self.window.screen, (0, 0, 0),
+                             (x, y, width, height), 1)
+
+    def get_binary(self, width=320):
         self.binary = self.frame
         self.binary = imutils.resize(self.binary, width=width)
         self.binary = pickle.dumps(self.binary)

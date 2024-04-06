@@ -10,6 +10,8 @@ class Robot:
         self.usb = USB()
 
         self.raw_data = []
+        self.gyro = 0
+        self.us = [100] * 6
     
     def start(self):
         self.usb.start()
