@@ -2,12 +2,14 @@ import sys
 import cv2
 import numpy as np
 import ArduCamDepthCamera as ac
-
-MAX_DISTANCE = 4
+from lib.video import Video
 
 class ToFCamera:
-    def __init__(self) -> None:
+    def __init__(self, video: Video) -> None:
         self.cam = ac.ArducamCamera()
+        self.cam.setControl(ac.TOFControl.RANG, 4)
+
+        self.video = video
 
         if self.cam.init(ac.TOFConnect.CSI, ac.TOFOutput.DEPTH, 0) != 0:
             print("[TOF CAMERA] Initialization failed")
@@ -26,6 +28,7 @@ class ToFCamera:
             self.cam.releaseFrame(frame)
 
             self.frame = self.process_frame()
+            self.video.frame = cv2.applyColorMap(self.frame, cv2.COLORMAP_JET)
 
 
     def process_frame(self) -> np.ndarray:
@@ -36,6 +39,7 @@ class ToFCamera:
         self.depth_buf = np.clip(self.depth_buf, 0, 255)
         self.result_frame = self.depth_buf.astype(
             np.uint8) & self.amplitude_buf.astype(np.uint8)
+        
         return self.result_frame
 
 
@@ -60,7 +64,7 @@ if __name__ == "__main__":
     if cam.start() != 0:
         print("Failed to start camera")
     
-    cam.setControl(ac.TOFControl.RANG, MAX_DISTANCE)
+    cam.setControl(ac.TOFControl.RANG, 4)
 
     while True:
         frame = cam.requestFrame(200)

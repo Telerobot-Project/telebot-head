@@ -11,10 +11,12 @@ from lib.robot import Robot
 
 
 class Server:
-    def __init__(self, user_video: Video, usb_video: Video, tof_video: Video, robot: Robot):
-        # self.host = socket.gethostbyname(socket.gethostname())
-        self.host = '192.168.43.161'
-        self.port = 5050
+    def __init__(self, user_video: Video, usb_video: Video, tof_video: Video, robot: Robot, host: str = None, port: int = 5050):
+        if host is not None:
+            self.host = host
+        else:
+            self.host = socket.gethostbyname(socket.gethostname())
+        self.port = port
         self.addr = (self.host, self.port)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connected = False

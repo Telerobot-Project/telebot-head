@@ -3,24 +3,29 @@ import numpy
 import pygame
 import pickle
 import imutils
-
+from numpy import rot90
 
 class Video:
-    def __init__(self, window):
+    def __init__(self, window, size = None):
         self.frame = None
         self.surface = None
         self.binary = None
         self.window = window
         self.new_data = False
+        self.size = size
 
     def start(self, i=0):
         self.obj = cv2.VideoCapture(i)
+        if self.size is not None:
+            self.obj.set(cv2.CAP_PROP_FRAME_WIDTH, self.size[0])
+            self.obj.set(cv2.CAP_PROP_FRAME_HEIGHT, self.size[1])
         self.width = int(self.obj.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.obj.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     def read(self):
         if self.obj.isOpened():
             _, self.frame = self.obj.read()
+            self.frame = rot90(self.frame)
             if self.frame is not None:
                 self.new_data = True
         return self.frame
