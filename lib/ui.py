@@ -5,7 +5,8 @@ class Window:
     def __init__(self, width, height, caption):
         self.width = width
         self.height = height
-        self.size = (width, height)
+        # self.size = (width, height)
+        self.size = (height, width) # rotated
         self.caption = caption
         self.run = True
 
@@ -23,7 +24,7 @@ class Window:
                 self.close()
 
     def update(self):
-        self.clock.tick(25)
+        self.clock.tick(30)
         pygame.display.update()
 
     def close(self):
@@ -34,7 +35,7 @@ class Window:
         self.screen.fill(color)
 
     def draw_text(self, text, x, y, color):
-        self.screen.blit(self.font.render(text, True, color), (x, y))
+        self.screen.blit(pygame.transform.rotate(self.font.render(text, True, color), 90), (y, x))
 
     def draw_multi_line(self, lines, x, y):
         for i, l in enumerate(lines):

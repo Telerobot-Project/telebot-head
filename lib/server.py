@@ -57,6 +57,7 @@ class Server:
                 self.receive_video(self.user_video)
 
                 self.user_video.unpack()
+                self.robot.move()
             except:
                 pass
 

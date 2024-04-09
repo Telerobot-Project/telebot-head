@@ -19,13 +19,16 @@ class Video:
         if self.size is not None:
             self.obj.set(cv2.CAP_PROP_FRAME_WIDTH, self.size[0])
             self.obj.set(cv2.CAP_PROP_FRAME_HEIGHT, self.size[1])
-        self.width = int(self.obj.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.height = int(self.obj.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            self.width = self.size[1]
+            self.height = self.size[0]
+        else:
+            self.width = int(self.obj.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            self.height = int(self.obj.get(cv2.CAP_PROP_FRAME_WIDTH))
 
     def read(self):
         if self.obj.isOpened():
             _, self.frame = self.obj.read()
-            self.frame = rot90(self.frame)
+            self.frame = rot90(self.frame, -1)
             if self.frame is not None:
                 self.new_data = True
         return self.frame
@@ -53,11 +56,12 @@ class Video:
             self.surface = cv2.cvtColor(self.surface, cv2.COLOR_BGR2RGB)
             self.surface = numpy.rot90(self.surface)
             self.surface = pygame.surfarray.make_surface(self.surface)
-            self.window.screen.blit(self.surface, (x, y))
+            rotated_surface = pygame.transform.rotate(self.surface, 90);
+            self.window.screen.blit(rotated_surface, (y, x))
             pygame.draw.rect(self.window.screen, (0, 0, 0),
-                             (x, y, width, height), 1)
+                             (y, x, height, width), 1)
 
-    def get_binary(self, width=320):
+    def get_binary(self, width=100):
         self.binary = self.frame
         self.binary = imutils.resize(self.binary, width=width)
         self.binary = pickle.dumps(self.binary)
