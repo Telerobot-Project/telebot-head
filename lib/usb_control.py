@@ -11,6 +11,7 @@ class USB:
         ports = serial.tools.list_ports.comports()
         for i, (port, desc, hwid) in enumerate(sorted(ports)):
             print("{}. {}: {} [{}]".format(i+1, port, desc, hwid))
+            print(desc)
         self.port, _, _ = ports[int(input('Port Number: ')) - 1]
 
         self.serial = Serial(self.port, 115200, timeout=1)
@@ -23,9 +24,12 @@ class USB:
 
     def read(self) -> list:
         if self.serial.in_waiting > 0:
-            data = self.serial.read_all().decode('utf-8').rstrip()
-            print(f'READ: {data}')
-            return data.split()
+            try:
+                data = self.serial.read_all().decode('utf-8').rstrip()
+                print(f'READ: {data}')
+                return data.split()
+            except:
+                pass
         return None
 
     def write(self, msg:str) -> None:

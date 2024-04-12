@@ -1,7 +1,7 @@
 import sys
 import cv2
 import numpy as np
-import ArduCamDepthCamera as ac
+import ArducamDepthCamera as ac
 from lib.video import Video
 
 class ToFCamera:
