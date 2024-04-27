@@ -1,45 +1,72 @@
+"""Rendering of the on-screen UI."""
+
+from typing import NamedTuple
+
 import pygame
-import math
+
+Color = tuple[int, int, int]
+
+
+class Point(NamedTuple):
+    """A point on the screen with x and y coordinates."""
+
+    x: int
+    y: int
+
+
+class Rectangle(NamedTuple):
+    """A rectangle/bounding box for a UI element."""
+
+    x: int
+    y: int
+    width: int
+    height: int
+
 
 class Window:
-    def __init__(self, width, height, caption):
-        self.width = width
-        self.height = height
-        # self.size = (width, height)
-        self.size = (height, width) # rotated
-        self.caption = caption
-        self.run = True
+    """The main application window."""
 
-    def start(self):
+    def __init__(self, width: int, height: int, caption: str) -> None:
+        """Initialize the window."""
         pygame.init()
         pygame.font.init()
-        self.screen = pygame.display.set_mode(self.size)
-        pygame.display.set_caption(self.caption)
-        self.font = pygame.font.SysFont('Arial', 15)
+
+        # The video is rotated by 90°
+        self.screen = pygame.display.set_mode((height, width))
+
+        pygame.display.set_caption(caption)
+        self.font = pygame.font.SysFont("Arial", 15)
         self.clock = pygame.time.Clock()
-    
-    def read(self):
+
+        self.run = True
+
+    def read(self) -> None:
+        """Process quit events from the pygame queue."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                self.close()
+                self.run = False
+                pygame.quit()
 
-    def update(self):
+    def update(self) -> None:
+        """Refresh the contents of the pygame window."""
         self.clock.tick(30)
         pygame.display.update()
 
-    def close(self):
-        pygame.quit()
-        self.run = False
-
-    def fill(self, color):
+    def fill(self, color: Color) -> None:
+        """Fill the window with a solid color."""
         self.screen.fill(color)
 
-    def draw_text(self, text, x, y, color):
-        self.screen.blit(pygame.transform.rotate(self.font.render(text, True, color), 90), (y, x))
-
-    def draw_multi_line(self, lines, x, y):
-        for i, l in enumerate(lines):
-            self.draw_text(l, x, y + 20*i, (255, 255, 255))
-
-    def draw_video(self, image, x, y):
-        self.screen.blit(image, (x, y))
+    def draw_text(self, text: str, position: Point, color: Color) -> None:
+        """Draw text to the screen."""
+        self.screen.blit(
+            pygame.transform.rotate(
+                self.font.render(
+                    text,
+                    antialias=True,
+                    color=color,
+                ),
+                90,
+            ),
+            # Swap x and y because the frame is rotated by 90°
+            position[::-1],
+        )

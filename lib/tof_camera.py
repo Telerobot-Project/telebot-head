@@ -1,8 +1,11 @@
 import sys
+
+import ArducamDepthCamera as ac  # type: ignore[import-untyped]  # noqa: N813
 import cv2
 import numpy as np
-import ArducamDepthCamera as ac
-from lib.video import Video
+
+from .video import Video
+
 
 class ToFCamera:
     def __init__(self, video: Video) -> None:
@@ -30,27 +33,26 @@ class ToFCamera:
             self.frame = self.process_frame()
             self.video.frame = cv2.applyColorMap(self.frame, cv2.COLORMAP_JET)
 
-
     def process_frame(self) -> np.ndarray:
         self.depth_buf = np.nan_to_num(self.depth_buf)
         self.amplitude_buf[self.amplitude_buf <= 30] = 0
         self.amplitude_buf[self.amplitude_buf > 30] = 255
-        self.depth_buf = (1 - (self.depth_buf/2)) * 255
+        self.depth_buf = (1 - (self.depth_buf / 2)) * 255
         self.depth_buf = np.clip(self.depth_buf, 0, 255)
-        self.result_frame = self.depth_buf.astype(
-            np.uint8) & self.amplitude_buf.astype(np.uint8)
-        
+        self.result_frame = self.depth_buf.astype(np.uint8) & self.amplitude_buf.astype(
+            np.uint8
+        )
+
         return self.result_frame
 
 
 def process_frame(depth_buf: np.ndarray, amplitude_buf: np.ndarray) -> np.ndarray:
-
     depth_buf = np.nan_to_num(depth_buf)
 
     amplitude_buf[amplitude_buf <= 30] = 0
     amplitude_buf[amplitude_buf > 30] = 255
 
-    depth_buf = (1 - (depth_buf/2)) * 255
+    depth_buf = (1 - (depth_buf / 2)) * 255
     depth_buf = np.clip(depth_buf, 0, 255)
     result_frame = depth_buf.astype(np.uint8) & amplitude_buf.astype(np.uint8)
     return result_frame
@@ -63,7 +65,7 @@ if __name__ == "__main__":
         print("initialization failed")
     if cam.start() != 0:
         print("Failed to start camera")
-    
+
     cam.setControl(ac.TOFControl.RANG, 4)
 
     while True:
